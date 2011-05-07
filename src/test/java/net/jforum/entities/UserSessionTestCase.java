@@ -24,16 +24,19 @@ import net.jforum.util.TestCaseUtils;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
 import org.jmock.States;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * @author Rafael Steil
+ * @author Matthias Sefrin
  */
 public class UserSessionTestCase {
 	private Mockery context = TestCaseUtils.newMockery();
 	private HttpServletRequest request = context.mock(HttpServletRequest.class);
-//	private HttpServletResponse response = context.mock(HttpServletResponse.class);
 	private HttpSession httpSession = context.mock(HttpSession.class);
 	private States state = context.states("userSessionState");
 	private Map<Integer, Long> topicsReadTime;
@@ -41,21 +44,28 @@ public class UserSessionTestCase {
 
 	@Before
 	public void setup() {
+		RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
 		userSession = new UserSession();
 
 		context.checking(new Expectations() {{
 			allowing(request).getSession(); will(returnValue(httpSession));
-			allowing(httpSession).getAttribute(ConfigKeys.LOGGED); will(returnValue("1")); when(state.is("logged"));
-			allowing(httpSession).getAttribute(ConfigKeys.LOGGED); will(returnValue("0")); when(state.isNot("logged"));
+			allowing(httpSession).getAttribute(ConfigKeys.LOGGED); will(returnValue("1")); when(state.is(ConfigKeys.LOGGED));
+			allowing(httpSession).getAttribute(ConfigKeys.LOGGED); will(returnValue("0")); when(state.isNot(ConfigKeys.LOGGED));
 		}});
 
 		this.loadTopicsReadTime();
 	}
-	
+
+	@After
+	public void tearDown() {
+		RequestContextHolder.resetRequestAttributes();
+	}
+
 	@Test
 	public void isForumReadLastPostTimeNewerThanLastVisitTopicTrackingSmallerThanLastPostExpectFalse() {
-		state.become("logged");
-		userSession.setLastVisit(10);
+		state.become(ConfigKeys.LOGGED);
+        userSession.setLastVisit(10);
 		Forum forum = this.newForum(1, 20); forum.getLastPost().getTopic().setId(1);
 		topicsReadTime.put(1, 15l);
 		Assert.assertFalse(userSession.isForumRead(forum));
@@ -63,7 +73,7 @@ public class UserSessionTestCase {
 
 	@Test
 	public void isForumReadLastPostTimeNewerThanLastVisitTopicTrackingDoestNotExistExpectFalse() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 		userSession.setLastVisit(10);
 		Forum forum = this.newForum(1, 20); forum.getLastPost().getTopic().setId(1);
 		topicsReadTime.put(2, 15l);
@@ -72,21 +82,21 @@ public class UserSessionTestCase {
 
 	@Test
 	public void isForumReadLastPostTimeNewerThanLastVisitExpectFalse() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 		userSession.setLastVisit(1);
 		Assert.assertFalse(userSession.isForumRead(this.newForum(1, 2)));
 	}
 
 	@Test
 	public void isForumReadLastVisitNewerThanLastPostTimeExpectTrue() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 		userSession.setLastVisit(10);
 		Assert.assertTrue(userSession.isForumRead(this.newForum(1, 5)));
 	}
 
 	@Test
 	public void isForumReadLastPostIsNullExpectTrue() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 		Forum forum = this.newForum(1, 1);
 		forum.setLastPost(null);
 		Assert.assertTrue(userSession.isForumRead(forum));
@@ -94,7 +104,7 @@ public class UserSessionTestCase {
 
 	@Test
 	public void isForumReadZeroPostsExpectTrue() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 		Assert.assertTrue(userSession.isForumRead(this.newForum(0, 0)));
 	}
 
@@ -106,20 +116,22 @@ public class UserSessionTestCase {
 	@Test
 	public void asSession() {
 		context.checking(new Expectations() {{
-			one(request).getRemoteAddr(); will(returnValue("ip"));
+			one(request).getHeader("X-Pounded-For"); will(returnValue(null));
+            one(request).getHeader("x-forwarded-for"); will(returnValue(null));
+            one(request).getRemoteAddr(); will(returnValue("ip"));
 		}});
 
-		userSession.setUser(new User() {/**
-			 *
-			 */
-			private static final long serialVersionUID = 1L;
-
-		{ setId(2); }});
+        userSession.setUser(new User() {
+            private static final long serialVersionUID = 1L;
+            {
+                setId(2);
+            }
+        });
 		userSession.setCreationTime(2);
 		userSession.setLastAccessedTime(1);
 		userSession.setLastVisit(5);
 
-		Session session  = userSession.asSession();
+		Session session = userSession.asSession();
 
 		context.assertIsSatisfied();
 
@@ -138,7 +150,7 @@ public class UserSessionTestCase {
 
 	@Test
 	public void isTopicReadWhenLoggedLastVisitNewerThanTopicShouldReturnTrue() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 
 		Topic topic = new Topic(); topic.setLastPost(new Post()); topic.getLastPost().setDate(new Date(1));
 		userSession.setLastVisit(5l);
@@ -148,7 +160,7 @@ public class UserSessionTestCase {
 
 	@Test
 	public void isTopicReadWhenLoggedLastVisitAndReadTimeOlderThanTopicShouldReturnFalse() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 
 		Topic topic = new Topic(); topic.setLastPost(new Post()); topic.getLastPost().setDate(new Date(10));
 		userSession.setLastVisit(1);
@@ -159,7 +171,7 @@ public class UserSessionTestCase {
 
 	@Test
 	public void isTopicReadWhenLoggedLastVisitOlderThanTopicReadTimeNewerThanTopicShouldReturnTrue() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 
 		Topic topic = new Topic(); topic.setLastPost(new Post()); topic.getLastPost().setDate(new Date(10));
 		userSession.setLastVisit(1);
@@ -170,7 +182,7 @@ public class UserSessionTestCase {
 
 	@Test
 	public void isTopicReadWhenLoggedLastVisitOlderThanTopicShouldReturnFalse() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 
 		Topic topic = new Topic(); topic.setLastPost(new Post()); topic.getLastPost().setDate(new Date(10));
 		userSession.setLastVisit(5);
@@ -180,7 +192,7 @@ public class UserSessionTestCase {
 
 	@Test
 	public void markAsReadWhenLogged() {
-		state.become("logged");
+		state.become(ConfigKeys.LOGGED);
 		Assert.assertTrue(userSession.isLogged());
 		Assert.assertEquals(0, topicsReadTime.size());
 		userSession.markTopicAsRead(2);
@@ -212,11 +224,8 @@ public class UserSessionTestCase {
 		}
 	}
 
-	private Forum newForum(final int totalPosts, long lastPostTime) {
+    private Forum newForum(final int totalPosts, long lastPostTime) {
 		Forum forum = new Forum() {
-			/**
-			 *
-			 */
 			private static final long serialVersionUID = 1L;
 
 			@Override
