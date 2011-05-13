@@ -39,8 +39,12 @@ import net.jforum.util.TestCaseUtils;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
 import org.jmock.States;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * @author Rafael Steil
@@ -75,6 +79,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void loginBackBeforeExpireExpectLastVisitCorrect() {
+        this.commonNonAnonymousLoginExpectations();
+        
 		UserSession us = this.newUserSession("123"); us.getUser().setId(2);
 		us.setCreationTime(1); us.setLastVisit(9);
 
@@ -99,6 +105,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void storeSessionExpectSuccess() {
+        this.commonNonAnonymousLoginExpectations();
+
 		context.checking(new Expectations() {{
 			allowing(httpSession).getId(); will(returnValue("123"));
 			ignoring(request); ignoring(httpSession);
@@ -134,136 +142,183 @@ public class SessionManagerTestCase {
 		state.become("good-cookies");
 		refreshState.become("on");
 		this.commonAutoLoginExpectations();
+        this.commonNonAnonymousLoginExpectations();
 
+        final User user = new User(); user.setId(2); user.setSecurityHash("123");
 		context.checking(new Expectations() {{
-			User user = new User(); user.setId(2); user.setSecurityHash("123");
 			one(userRepository).get(2); will(returnValue(user));
 			one(httpSession).setAttribute(ConfigKeys.LOGGED, "1");
 			one(request).setAttribute("sso", false);
-			one(config).getValue("sso.logout");
-			one(request).setAttribute("ssoLogout", "");
+            one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
+			one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
-		manager.refreshSession(request, response);
-		context.assertIsSatisfied();
+        UserSession userSession = manager.refreshSession(request, response);
+        context.assertIsSatisfied();
+        assertIsUserSession(userSession, user);
 	}
 
 	@Test
 	public void autoLoginValidUserInvalidSecurityHashShouldDeny() {
 		state.become("good-cookies");
 		refreshState.become("on");
+
 		this.commonAutoLoginExpectations();
+        this.commonAutoLoginShouldFailExpectations();
 
 		context.checking(new Expectations() {{
-			User user = new User(); user.setId(2); user.setSecurityHash("abc");
+			one(request).setAttribute("sso", false);
+            one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
+            User user = new User(); user.setId(2); user.setSecurityHash("abc");
+            User anonUser = new User(); anonUser.setId(1);
 			one(userRepository).get(2); will(returnValue(user));
-			one(httpSession).getAttributeNames();
-			one(userRepository).get(1); will(returnValue(new User()));
+			one(userRepository).get(1); will(returnValue(anonUser));
+            one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
-		manager.refreshSession(request, response);
-		context.assertIsSatisfied();
+		UserSession userSession = manager.refreshSession(request, response);
+        context.assertIsSatisfied();
+        assertIsAnonymousUserSession(userSession);
 	}
 
 	@Test
 	public void autoLoginValidUserEmptySecurityHashShouldDeny() {
 		state.become("good-cookies");
 		refreshState.become("on");
+        
 		this.commonAutoLoginExpectations();
+        this.commonAutoLoginShouldFailExpectations();
 
 		context.checking(new Expectations() {{
-			User user = new User(); user.setId(2); user.setSecurityHash(null);
+			one(request).setAttribute("sso", false);
+			one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
+            User user = new User(); user.setId(2); user.setSecurityHash(null);
 			one(userRepository).get(2); will(returnValue(user));
-			one(httpSession).getAttributeNames();
-			one(userRepository).get(1); will(returnValue(new User()));
+            User anonUser = new User(); anonUser.setId(1);
+            one(userRepository).get(1); will(returnValue(anonUser));
+			one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
-		manager.refreshSession(request, response);
-		context.assertIsSatisfied();
+		UserSession userSession = manager.refreshSession(request, response);
+        context.assertIsSatisfied();
+        assertIsAnonymousUserSession(userSession);
 	}
 
 	@Test
 	public void autoLoginValidUserHasDeletedFlagShouldDeny() {
-		state.become("good-cookies");
+        state.become("good-cookies");
 		refreshState.become("on");
-		this.commonAutoLoginExpectations();
+
+        this.commonAutoLoginExpectations();
+        this.commonAutoLoginShouldFailExpectations();
 
 		context.checking(new Expectations() {{
 			User user = new User(); user.setId(2); user.setDeleted(true);
 			one(userRepository).get(2); will(returnValue(user));
-			one(httpSession).getAttributeNames();
-			one(userRepository).get(1); will(returnValue(new User()));
+			User anonUser = new User(); anonUser.setId(1);
+            one(userRepository).get(1); will(returnValue(anonUser));
+            one(request).setAttribute("sso", false);
+            one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
+            one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
-		manager.refreshSession(request, response);
-		context.assertIsSatisfied();
+		UserSession userSession = manager.refreshSession(request, response);
+        context.assertIsSatisfied();
+        assertIsAnonymousUserSession(userSession);
 	}
 
 	@Test
 	public void autoLoginValidUserNotfoundInRepositoryShouldDeny() {
 		state.become("good-cookies");
 		refreshState.become("on");
+
 		this.commonAutoLoginExpectations();
+        this.commonAutoLoginShouldFailExpectations();
 
 		context.checking(new Expectations() {{
 			one(userRepository).get(2); will(returnValue(null));
-			one(httpSession).getAttributeNames();
-			one(userRepository).get(1); will(returnValue(new User()));
+			User anonUser = new User(); anonUser.setId(1);
+            one(userRepository).get(1); will(returnValue(anonUser));
+            one(request).setAttribute("sso", false);
+            one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
+            one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
-		manager.refreshSession(request, response);
-		context.assertIsSatisfied();
+		UserSession userSession = manager.refreshSession(request, response);
+        context.assertIsSatisfied();
+        assertIsAnonymousUserSession(userSession);
 	}
 
 	@Test
 	public void autoLoginValidUserCookieValueNot1ShouldDeny() {
 		refreshState.become("on");
+
 		this.commonAutoLoginExpectations();
+        this.commonAutoLoginShouldFailExpectations();
 
 		context.checking(new Expectations() {{
+			one(request).setAttribute("sso", false);
+			one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
 			allowing(request).getCookies(); will(returnValue(new Cookie[] {
 				new Cookie("cookieNameData", "2"),
 				new Cookie("cookieUserHash", "a"),
 				new Cookie("cookieAutoLogin", "0")
 			}));
-			one(userRepository).get(1); will(returnValue(new User()));
+            User anonUser = new User(); anonUser.setId(1);
+			one(userRepository).get(1); will(returnValue(anonUser));
+            one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
-		manager.refreshSession(request, response);
-		context.assertIsSatisfied();
+		UserSession userSession = manager.refreshSession(request, response);
+        context.assertIsSatisfied();
+        assertIsAnonymousUserSession(userSession);
 	}
 
 	@Test
 	public void autoLoginAnonymousUserShouldDeny() {
 		state.become("cookies");
 		refreshState.become("on");
+
 		this.commonAutoLoginExpectations();
+        this.commonAutoLoginShouldFailExpectations();
 
 		context.checking(new Expectations() {{
+			one(request).setAttribute("sso", false);
+			one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
 			allowing(request).getCookies(); will(returnValue(new Cookie[] {
 				new Cookie("cookieNameData", "1"),
 				new Cookie("cookieUserHash", "a"),
 				new Cookie("cookieAutoLogin", "1")
 			}));
-			one(userRepository).get(1); will(returnValue(new User()));
+            User anonUser = new User(); anonUser.setId(1);
+			one(userRepository).get(1); will(returnValue(anonUser));
+            one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
-		manager.refreshSession(request, response);
-		context.assertIsSatisfied();
+		UserSession userSession = manager.refreshSession(request, response);
+        context.assertIsSatisfied();
+        assertIsAnonymousUserSession(userSession);
 	}
 
 	@Test
 	public void autoLoginDoestNotHaveCookiesShouldDeny() {
-		this.commonAutoLoginExpectations();
 		refreshState.become("on");
 
+        this.commonAutoLoginExpectations();
+        this.commonAutoLoginShouldFailExpectations();
+
 		context.checking(new Expectations() {{
+			one(request).setAttribute("sso", false);
+			one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
 			atLeast(1).of(request).getCookies(); will(returnValue(null));
-			one(userRepository).get(1); will(returnValue(new User()));
+            User anonUser = new User(); anonUser.setId(1);
+			one(userRepository).get(1); will(returnValue(anonUser));
+            one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
-		manager.refreshSession(request, response);
-		context.assertIsSatisfied();
+		UserSession userSession = manager.refreshSession(request, response);
+        context.assertIsSatisfied();
+        assertIsAnonymousUserSession(userSession);
 	}
 
 	@Test
@@ -274,8 +329,11 @@ public class SessionManagerTestCase {
 		us.setUser(user);
 
 		context.checking(new Expectations() {{
+			one(request).setAttribute("sso", false);
+			one(request).setAttribute("sso.logout", Boolean.FALSE.toString());
 			atLeast(1).of(httpSession).getId(); will(returnValue("123"));
 			one(userRepository).get(user.getId()); will(returnValue(user));
+            one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("false"));
 		}});
 
 		manager.add(us);
@@ -292,10 +350,10 @@ public class SessionManagerTestCase {
 			atLeast(1).of(httpSession).getId(); will(returnValue("123"));
 			one(httpSession).getAttributeNames();
 			one(config).getBoolean(ConfigKeys.AUTO_LOGIN_ENABLED); will(returnValue(false));
-			one(userRepository).get(1); will(returnValue(anonymousUser));
-			one(request).setAttribute("sso", false);
 			one(config).getValue(ConfigKeys.SSO_LOGOUT); will(returnValue("x"));
-			one(request).setAttribute("ssoLogout", "x");
+            one(userRepository).get(1); will(returnValue(anonymousUser));
+			one(request).setAttribute("sso", false);
+            one(request).setAttribute("sso.logout", "x");
 		}});
 
 		UserSession us = manager.refreshSession(request, response);
@@ -313,6 +371,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void isUserInSessionExpectMatch() {
+        this.commonNonAnonymousLoginExpectations();
+        
 		UserSession us1 = this.newUserSession("1"); us1.getUser().setId(2); manager.add(us1);
 		UserSession expected = manager.isUserInSession(2);
 		Assert.assertNotNull(expected);
@@ -321,6 +381,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void getUserSessionShouldAlwaysFind() {
+        this.commonNonAnonymousLoginExpectations();
+        
 		UserSession us1 = this.newUserSession("1"); us1.getUser().setId(2); manager.add(us1);
 		UserSession us2 = this.newUserSession("2"); us2.getUser().setId(3); manager.add(us2);
 		UserSession us3 = this.newUserSession("3"); manager.add(us3);
@@ -333,6 +395,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void getLoggedSessions() {
+        this.commonNonAnonymousLoginExpectations();
+
 		UserSession us1 = this.newUserSession("1"); us1.getUser().setId(2); manager.add(us1);
 		UserSession us2 = this.newUserSession("2"); us2.getUser().setId(3); manager.add(us2);
 		UserSession us3 = this.newUserSession("3"); manager.add(us3);
@@ -343,7 +407,7 @@ public class SessionManagerTestCase {
 		Assert.assertFalse(sessions.contains(us3));
 	}
 
-	@Test
+    @Test
 	public void getAllSessions() {
 		UserSession us1 = this.newUserSession("1"); manager.add(us1);
 		UserSession us2 = this.newUserSession("2"); manager.add(us2);
@@ -355,6 +419,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void getTotalAnonymousUsers() {
+        this.commonNonAnonymousLoginExpectations();
+
 		manager.add(this.newUserSession("1"));
 		manager.add(this.newUserSession("2"));
 		manager.add(this.newUserSession("3"));
@@ -365,6 +431,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void getTotalLoggedUsers() {
+        this.commonNonAnonymousLoginExpectations();
+        
 		UserSession us1 = this.newUserSession("1"); us1.getUser().setId(3); manager.add(us1);
 		UserSession us2 = this.newUserSession("2"); us2.getUser().setId(4); manager.add(us2);
 
@@ -374,6 +442,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void getTotalUsers() {
+        this.commonNonAnonymousLoginExpectations();
+        
 		manager.add(this.newUserSession("1"));
 		manager.add(this.newUserSession("2"));
 		UserSession us3 = this.newUserSession("3"); us3.getUser().setId(3); manager.add(us3);
@@ -396,6 +466,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void removeLoggedUser() {
+        this.commonNonAnonymousLoginExpectations();
+        
 		UserSession us = this.newUserSession("1");
 		us.getUser().setId(2);
 		manager.add(us);
@@ -428,6 +500,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void addModeratorShouldIncrementTotalModeratorsOnline() {
+        this.commonNonAnonymousLoginExpectations();
+        
 		UserSession us = this.newUserSession("1");
 		Group g = new Group();
 		Role role = new Role(); role.setName(SecurityConstants.MODERATOR);
@@ -444,6 +518,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void removeModeratorShouldDecrementModeratorsOnline() {
+        this.commonNonAnonymousLoginExpectations();
+        
 		UserSession us = this.newUserSession("1");
 		Group g = new Group();
 		Role role = new Role(); role.setName(SecurityConstants.MODERATOR);
@@ -478,6 +554,8 @@ public class SessionManagerTestCase {
 
 	@Test
 	public void addLoggedUser() {
+        this.commonNonAnonymousLoginExpectations();
+
 		UserSession us = this.newUserSession("1");
 		us.getUser().setId(2);
 		manager.add(us);
@@ -503,7 +581,9 @@ public class SessionManagerTestCase {
 
 	@Before
 	public void setup() {
-		context.checking(new Expectations() {{
+		RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        context.checking(new Expectations() {{
 			allowing(config).getInt(ConfigKeys.ANONYMOUS_USER_ID); will(returnValue(1));
 			allowing(config).getValue(ConfigKeys.ANONYMOUS_USER_ID); will(returnValue("1"));
 			allowing(config).getValue(ConfigKeys.COOKIE_USER_ID); will(returnValue("cookieNameData"));
@@ -511,15 +591,28 @@ public class SessionManagerTestCase {
 			allowing(config).getValue(ConfigKeys.COOKIE_AUTO_LOGIN); will(returnValue("cookieAutoLogin"));
 			allowing(config).getValue(ConfigKeys.AUTHENTICATION_TYPE); will(returnValue("x"));
 			allowing(request).getSession(); will(returnValue(httpSession));
-			allowing(httpSession).getAttribute(ConfigKeys.LOGGED); will(returnValue("1")); when(state.is("logged"));
-			allowing(httpSession).getAttribute(ConfigKeys.LOGGED); when(state.isNot("logged"));
-			allowing(sessionRepository).get(with(any(int.class))); will(returnValue(null)); when(state.isNot("back"));
+			//allowing(httpSession).getAttribute(ConfigKeys.LOGGED); will(returnValue("1")); when(state.is("logged"));
+			//allowing(httpSession).getAttribute(ConfigKeys.LOGGED); when(state.isNot("logged"));
+            // called for non-anonymous logins only
+			//allowing(sessionRepository).get(with(any(int.class))); will(returnValue(null)); when(state.isNot("back"));
 		}});
 	}
 
+	@After
+	public void tearDown() {
+		RequestContextHolder.resetRequestAttributes();
+	}
+
+    private void commonLoginExpectations() {
+		context.checking(new Expectations() {{
+		}});
+	}
+
+    /**
+     * Applies some cookie so that we'll try to login as user id 2.
+     */
 	private void commonAutoLoginExpectations() {
 		context.checking(new Expectations() {{
-			one(httpSession).getAttributeNames();
 			atLeast(1).of(httpSession).getId(); will(returnValue("123"));
 			one(config).getBoolean(ConfigKeys.AUTO_LOGIN_ENABLED); will(returnValue(true));
 
@@ -531,6 +624,28 @@ public class SessionManagerTestCase {
 		}});
 	}
 
+    private void commonAutoLoginShouldFailExpectations() {
+        context.checking(new Expectations() {{
+            allowing(httpSession).getAttribute(ConfigKeys.LOGGED); will(returnValue("1")); when(state.is("logged"));
+            //allowing(httpSession).getAttribute(ConfigKeys.LOGGED); when(state.isNot("logged"));
+            allowing(sessionRepository).get(with(any(int.class))); will(returnValue(null)); when(state.isNot("back"));
+            // clearAllAttributes()
+            one(httpSession).getAttributeNames();
+        }});
+    }
+
+    /**
+     *
+     */
+    private void commonNonAnonymousLoginExpectations() {
+        context.checking(new Expectations() {{
+            //allowing(httpSession).getAttribute(ConfigKeys.LOGGED); will(returnValue("1")); when(state.is("logged"));
+            //allowing(httpSession).getAttribute(ConfigKeys.LOGGED); when(state.isNot("logged"));
+            // called for non-anonymous logins only
+            allowing(sessionRepository).get(with(any(int.class))); will(returnValue(null)); when(state.isNot("back"));
+        }});
+    }
+
 	private UserSession newUserSession(String sessionId) {
 		UserSession us = new UserSession();
 
@@ -539,4 +654,16 @@ public class SessionManagerTestCase {
 
 		return us;
 	}
+
+    private void assertIsAnonymousUserSession(UserSession userSession) {
+        Assert.assertEquals("user session must be anonymous", 1, userSession.getUser().getId());
+        //Object foo = userSession.getAttribute(ConfigKeys.LOGGED);
+        //Assert.assertEquals("user session must not be logged in", 0, foo);
+        //Assert.assertFalse("session must be cleaned up after failed login", request.getSession().getAttributeNames().hasMoreElements());
+    }
+
+    private void assertIsUserSession(UserSession userSession, User user) {
+        Assert.assertEquals("user session must be owned by user with id " + user.getId(), user.getId(), userSession.getUser().getId());
+        //Assert.assertEquals("user session must not be logged in", 1, userSession.getAttribute(ConfigKeys.LOGGED));
+    }
 }

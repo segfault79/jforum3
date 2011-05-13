@@ -239,7 +239,7 @@ public class SessionManager {
 	public UserSession refreshSession(HttpServletRequest request, HttpServletResponse response) {
 		boolean isSSOAuthentication = ConfigKeys.TYPE_SSO.equals(this.config.getValue(ConfigKeys.AUTHENTICATION_TYPE));
 		request.setAttribute("sso", isSSOAuthentication);
-		request.setAttribute("ssoLogout", this.config.getValue(ConfigKeys.SSO_LOGOUT));
+		request.setAttribute("sso.logout", this.config.getValue(ConfigKeys.SSO_LOGOUT));
 
 		UserSession userSession = this.getUserSession(request.getSession().getId());
 		int anonymousUserId = this.config.getInt(ConfigKeys.ANONYMOUS_USER_ID);
@@ -259,8 +259,8 @@ public class SessionManager {
 					boolean autoLoginSuccess = autoLoginEnabled && this.checkAutoLogin(userSession);
 
 					if (!autoLoginSuccess) {
-						userSession.becomeAnonymous(anonymousUserId);
-						userSession.setUser(this.userRepository.get(anonymousUserId));
+                        userSession.becomeAnonymous(anonymousUserId);
+                        userSession.setUser(this.userRepository.get(anonymousUserId));
 					}
 				}
 			}
@@ -366,7 +366,7 @@ public class SessionManager {
 	 * Checks user credentials / automatic login.
 	 *
 	 * @param userSession The UserSession instance associated to the user's session
-	 * @return <code>true</code> if auto login was enabled and the user was sucessfuly logged in.
+	 * @return <code>true</code> if auto login was enabled and the user was successfully logged in.
 	 */
 	private boolean checkAutoLogin(UserSession userSession) {
 		Cookie userIdCookie = userSession.getCookie(this.config.getValue(ConfigKeys.COOKIE_USER_ID));
@@ -382,14 +382,12 @@ public class SessionManager {
 			User user = this.userRepository.get(Integer.parseInt(userId));
 
 			if (user == null || user.isDeleted() || StringUtils.isEmpty(user.getSecurityHash())) {
-				userSession.becomeAnonymous(this.config.getInt(ConfigKeys.ANONYMOUS_USER_ID));
 				return false;
 			}
 
 			String securityHash = MD5.hash(user.getSecurityHash());
-
+            
 			if (!securityHash.equals(uidHash)) {
-				userSession.becomeAnonymous(this.config.getInt(ConfigKeys.ANONYMOUS_USER_ID));
 				return false;
 			}
 			else {
