@@ -14,11 +14,13 @@ import java.util.List;
 
 import net.jforum.actions.helpers.ApproveInfo;
 import net.jforum.entities.ModerationLog;
+import net.jforum.entities.Post;
 import net.jforum.entities.Topic;
 import net.jforum.services.ModerationService;
 
 /**
  * @author Rafael Steil
+ * @author Matthias Sefrin
  */
 public class AOPTestModerationService extends ModerationService {
 
@@ -29,11 +31,13 @@ public class AOPTestModerationService extends ModerationService {
 
     @Override
     public void doApproval(int forumId, List<ApproveInfo> infos) {
+    }
 
+    @Override
+    public void approvePost(Post post) {
     }
 
     @Override
     public void moveTopics(int toForumId, ModerationLog moderationLog, int... topicIds) {
-
     }
 }

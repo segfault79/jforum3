@@ -29,7 +29,7 @@ import org.apache.commons.lang.StringUtils;
 /**
  * @author Rafael Steil
  */
-public class GroupService {
+public class GroupService implements IGroupService {
 	private GroupRepository repository;
 	private SessionManager sessionManager;
 	private UserRepository userRepository;
@@ -49,7 +49,8 @@ public class GroupService {
 	/**
 	 * Save the permissions for this group
 	 */
-	public void savePermissions(int groupId, PermissionOptions permissions) {
+	@Override
+    public void savePermissions(int groupId, PermissionOptions permissions) {
 		Group group = this.repository.get(groupId);
 
 		RoleManager currentRoles = new RoleManager();
@@ -114,7 +115,8 @@ public class GroupService {
 	 * Add a new group
 	 * @param group
 	 */
-	public void add(Group group) {
+	@Override
+    public void add(Group group) {
 		this.applyCommonConstraints(group);
 
 		if (group.getId() > 0) {
@@ -128,8 +130,9 @@ public class GroupService {
 	 * Updates the information of an existing group
 	 * @param group
 	 */
-	public void update(Group group) {
-		this.applyCommonConstraints(group);
+    @Override
+    public void update(Group group) {
+        this.applyCommonConstraints(group);
 
 		if (group.getId() == 0) {
 			throw new ValidationException("update() expects a group with an existing id");
@@ -142,7 +145,8 @@ public class GroupService {
 	 * Deletes one or more groups
 	 * @param ids
 	 */
-	public void delete(int... ids) {
+	@Override
+    public void delete(int... ids) {
 		if (ids != null) {
 			// TODO: Must not delete a group if it has users
 			for (int groupId : ids) {
@@ -152,7 +156,8 @@ public class GroupService {
 		}
 	}
 
-	public void appendRole(Group group, String roleName, int roleValue) {
+	@Override
+    public void appendRole(Group group, String roleName, int roleValue) {
 		for (Role role : group.getRoles()) {
 			if (role.getName().equals(roleName)) {
 				role.getRoleValues().add(roleValue);

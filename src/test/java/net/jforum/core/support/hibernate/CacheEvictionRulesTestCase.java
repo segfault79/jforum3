@@ -19,20 +19,12 @@ import java.util.List;
 import java.util.Set;
 
 import net.jforum.actions.helpers.AttachedFile;
-import net.jforum.entities.Forum;
-import net.jforum.entities.PollOption;
-import net.jforum.entities.Post;
-import net.jforum.entities.Topic;
+import net.jforum.entities.*;
 import net.jforum.repository.ConfigRepository;
 import net.jforum.repository.RankingRepository;
 import net.jforum.repository.SmilieRepository;
 import net.jforum.repository.UserRepository;
-import net.jforum.services.CategoryService;
-import net.jforum.services.ForumService;
-import net.jforum.services.GroupService;
-import net.jforum.services.ModerationService;
-import net.jforum.services.PostService;
-import net.jforum.services.TopicService;
+import net.jforum.services.*;
 import net.jforum.util.TestCaseUtils;
 
 import org.hibernate.cache.Cache;
@@ -56,7 +48,7 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 	 */
 	public void testPermissionsChaged() throws Exception {
 		this.expectQueryCacheEviction("forumDAO.getModerators");
-		this.executeTargetMethod(GroupService.class, "savePermissions", 0, null);
+		this.executeTargetMethod(IGroupService.class, "savePermissions", 0, null);
 		context.assertIsSatisfied();
 	}
 
@@ -167,7 +159,7 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 	private void runForumServiceTest(String methodName) throws Exception {
 		this.expectQueryCacheEviction("categoryDAO.getForums");
 		this.expect2ndLevelCacheEviction("net.jforum.entities.Forum");
-		this.executeTargetMethod(ForumService.class, methodName);
+		this.executeTargetMethod(IForumService.class, methodName);
 		context.assertIsSatisfied();
 	}
 
@@ -187,7 +179,7 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 		this.expectQueryCacheEviction("recentTopicsDAO");
 		this.expectQueryCacheEviction("forumDAO.getTopics#" + forum.getId());
 
-		this.executeTargetMethod(PostService.class, "delete", post);
+		this.executeTargetMethod(IPostService.class, "delete", post);
 
 		context.assertIsSatisfied();
 	}
@@ -205,7 +197,7 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 		this.expectQueryCacheEviction("rssDAO.getForumTopics#1");
 		this.expectQueryCacheEviction("recentTopicsDAO");
 
-		this.executeVerySpecificTargetMethod(ModerationService.class, "deleteTopics", List.class, topics);
+		this.executeVerySpecificTargetMethod(IModerationService.class, "deleteTopics", new Class[] {List.class, ModerationLog.class}, topics, new ModerationLog());
 
 		context.assertIsSatisfied();
 	}
@@ -217,7 +209,7 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 		Topic topic = new Topic(); topic.setPendingModeration(false); topic.setForum(forum);
 		Post post = new Post(); post.setTopic(topic);
 
-		this.executeTargetMethod(ModerationService.class, "approvePost", post);
+		this.executeTargetMethod(IModerationService.class, "approvePost", post);
 
 		context.assertIsSatisfied();
 	}
@@ -241,7 +233,7 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 			one(cache).remove("net.jforum.entities.Forum#2");
 		}});
 
-		this.executeTargetMethod(ModerationService.class, "moveTopics", 1, new int[] { 5 });
+		this.executeTargetMethod(IModerationService.class, "moveTopics", 1, new ModerationLog(), new int[] { 5 });
 
 		context.assertIsSatisfied();
 	}
@@ -261,10 +253,10 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 		Topic topic = new Topic(); topic.setPendingModeration(false); topic.setForum(forum);
 
 		if ("addTopic".equals(methodName)) {
-			this.executeTargetMethod(TopicService.class, methodName, topic, new ArrayList<PollOption>(), new ArrayList<AttachedFile>());
+			this.executeTargetMethod(ITopicService.class, methodName, topic, new ArrayList<PollOption>(), new ArrayList<AttachedFile>());
 		}
 		else {
-			this.executeTargetMethod(TopicService.class, methodName, topic, new Post(), new ArrayList<AttachedFile>());
+			this.executeTargetMethod(ITopicService.class, methodName, topic, new Post(), new ArrayList<AttachedFile>());
 		}
 
 		context.assertIsSatisfied();
@@ -307,7 +299,7 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 		this.expectQueryCacheEviction("categoryDAO.getAllCategories");
 		this.expect2ndLevelCacheEviction("net.jforum.entities.Category");
 
-		this.executeTargetMethod(CategoryService.class, methodName);
+		this.executeTargetMethod(ICategoryService.class, methodName);
 
 		context.assertIsSatisfied();
 	}
@@ -349,9 +341,9 @@ public class CacheEvictionRulesTestCase extends AbstractDependencyInjectionSprin
 		}
 	}
 
-	private void executeVerySpecificTargetMethod(Class<?> entityClass, String methodName, Class<?> argumentType, Object... args) throws Exception {
+	private void executeVerySpecificTargetMethod(Class<?> entityClass, String methodName, Class<?>[] argumentTypes, Object... args) throws Exception {
 		Object entity = this.getBean(entityClass.getName());
-		Method method = entity.getClass().getMethod(methodName, argumentType);
+    	Method method = entity.getClass().getMethod(methodName, argumentTypes);
 		method.invoke(entity, args);
 	}
 

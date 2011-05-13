@@ -20,4 +20,11 @@
 	<bean id="net.jforum.repository.UserRepository" class="net.jforum.core.support.hibernate.AOPTestUserDAO" autowire="constructor"/>
 	<bean id="net.jforum.repository.SmilieRepository" class="net.jforum.core.support.hibernate.AOPTestSmilieDAO" autowire="constructor"/>
 	<bean id="net.jforum.repository.RankingRepository" class="net.jforum.core.support.hibernate.AOPTestRankingDAO" autowire="constructor"/>
+
+    <bean id="net.jforum.services.ICategoryService" class="net.jforum.core.support.hibernate.AOPTestCategoryService"/>
+    <bean id="net.jforum.services.IForumService" class="net.jforum.core.support.hibernate.AOPTestForumService"/>
+    <bean id="net.jforum.services.ITopicService" class="net.jforum.core.support.hibernate.AOPTestTopicService"/>
+    <bean id="net.jforum.services.IModerationService" class="net.jforum.core.support.hibernate.AOPTestModerationService"/>
+    <bean id="net.jforum.services.IGroupService" class="net.jforum.core.support.hibernate.AOPTestGroupService"/>
+    <bean id="net.jforum.services.IPostService" class="net.jforum.core.support.hibernate.AOPTestPostService"/>
 </beans>

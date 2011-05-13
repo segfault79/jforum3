@@ -21,7 +21,7 @@ import org.apache.commons.lang.StringUtils;
 /**
  * @author Rafael Steil
  */
-public class CategoryService {
+public class CategoryService implements ICategoryService {
 	private CategoryRepository repository;
 
 	public CategoryService(CategoryRepository repository) {
@@ -39,7 +39,8 @@ public class CategoryService {
 	 * @param category
 	 * @throws ValidationException if the instance is not good for saving
 	 */
-	public void add(Category category) {
+	@Override
+    public void add(Category category) {
 		this.applyCommonConstraints(category);
 
 		if (category.getId() > 0) {
@@ -53,7 +54,8 @@ public class CategoryService {
 	 * Deletes on or more categories
 	 * @param ids
 	 */
-	public void delete(int... ids) {
+	@Override
+    public void delete(int... ids) {
 		if (ids != null) {
 			for (int id : ids) {
 				Category c = this.repository.get(id);
@@ -66,7 +68,8 @@ public class CategoryService {
 	 * Updates an existing category
 	 * @param category
 	 */
-	public void update(Category category) {
+	@Override
+    public void update(Category category) {
 		this.applyCommonConstraints(category);
 		
 		if (category.getId() == 0) {
@@ -80,7 +83,8 @@ public class CategoryService {
 	 * Changes the category order one level up
 	 * @param categoryId
 	 */
-	public void upCategoryOrder(int categoryId) {
+	@Override
+    public void upCategoryOrder(int categoryId) {
 		this.processOrdering(true, categoryId);
 	}
 
@@ -88,7 +92,8 @@ public class CategoryService {
 	 * Changes the category order one level down
 	 * @param categoryId
 	 */
-	public void downCategoryOrder(int categoryId) {
+	@Override
+    public void downCategoryOrder(int categoryId) {
 		this.processOrdering(false, categoryId);
 	}
 

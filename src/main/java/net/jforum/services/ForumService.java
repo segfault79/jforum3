@@ -21,7 +21,7 @@ import org.apache.commons.lang.StringUtils;
 /**
  * @author Rafael Steil
  */
-public class ForumService {
+public class ForumService implements IForumService {
 	private ForumRepository repository;
 
 	public ForumService(ForumRepository repository) {
@@ -38,7 +38,8 @@ public class ForumService {
 	 * Add a new forum
 	 * @param forum
 	 */
-	public void add(Forum forum) {
+	@Override
+    public void add(Forum forum) {
 		this.applyCommonConstraints(forum);
 
 		if (forum.getId() > 0) {
@@ -52,7 +53,8 @@ public class ForumService {
 	 * Updates the information of an existing forum
 	 * @param forum
 	 */
-	public void update(Forum forum) {
+	@Override
+    public void update(Forum forum) {
 		this.applyCommonConstraints(forum);
 
 		if (forum.getId() == 0) {
@@ -74,7 +76,8 @@ public class ForumService {
 	 * Deletes on or more forums
 	 * @param ids
 	 */
-	public void delete(int... ids) {
+	@Override
+    public void delete(int... ids) {
 		if (ids != null) {
 			for (int id : ids) {
 				Forum forum = this.repository.get(id);
@@ -88,7 +91,8 @@ public class ForumService {
 	 * Changes the forum order one level up
 	 * @param forumId
 	 */
-	public void upForumOrder(int forumId) {
+	@Override
+    public void upForumOrder(int forumId) {
 		this.processOrdering(true, forumId);
 	}
 
@@ -96,7 +100,8 @@ public class ForumService {
 	 * Changes the forum order one level down
 	 * @param forumId
 	 */
-	public void downForumOrder(int forumId) {
+	@Override
+    public void downForumOrder(int forumId) {
 		this.processOrdering(false, forumId);
 	}
 

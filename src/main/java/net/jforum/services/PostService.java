@@ -26,7 +26,7 @@ import org.apache.commons.lang.StringUtils;
 /**
  * @author Rafael Steil
  */
-public class PostService {
+public class PostService implements IPostService {
 	private PostRepository postRepository;
 	private AttachmentService attachmentService;
 	private PollService pollService;
@@ -43,15 +43,16 @@ public class PostService {
 	}
 
 	/**
-	 * Required by CGLib. Use {@link #PostService(PostRepository)} instead
+	 * Required by CGLib. Use {@link #PostService()} instead
 	 */
 	public PostService() { }
 
 	/**
 	 * Deletes an existing post
-	 * @param postId
+	 * @param post
 	 */
-	public void delete(Post post) {
+	@Override
+    public void delete(Post post) {
 		this.attachmentService.deleteAllAttachments(post);
 		this.postRepository.remove(post);
 	}
@@ -64,7 +65,8 @@ public class PostService {
 	 * @param attachments
 	 * @param moderationLog
 	 */
-	public void update(Post post, boolean canChangeTopicType, List<PollOption> pollOptions,
+	@Override
+    public void update(Post post, boolean canChangeTopicType, List<PollOption> pollOptions,
 			List<AttachedFile> attachments, ModerationLog moderationLog) {
 		this.applySaveConstraints(post);
 

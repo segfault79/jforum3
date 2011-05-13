@@ -28,7 +28,7 @@ import org.apache.commons.lang.StringUtils;
 /**
  * @author Rafael Steil
  */
-public class TopicService {
+public class TopicService implements ITopicService {
 	private TopicRepository topicRepository;
 	private PostRepository postRepository;
 	private ForumRepository forumRepository;
@@ -61,7 +61,8 @@ public class TopicService {
 	 * @param pollOptions
 	 * @param attachments
 	 */
-	public void addTopic(Topic topic, List<PollOption> pollOptions, List<AttachedFile> attachments) {
+	@Override
+    public void addTopic(Topic topic, List<PollOption> pollOptions, List<AttachedFile> attachments) {
 		this.performAddValidations(topic);
 
 		if (topic.getDate() == null) {
@@ -103,7 +104,8 @@ public class TopicService {
 	 * @param post the reply itself
 	 * @param attachments
 	 */
-	public void reply(Topic topic, Post post, List<AttachedFile> attachments) {
+	@Override
+    public void reply(Topic topic, Post post, List<AttachedFile> attachments) {
 		Topic current = this.topicRepository.get(topic.getId());
 
 		if (StringUtils.isEmpty(post.getSubject())) {

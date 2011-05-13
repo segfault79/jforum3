@@ -23,6 +23,7 @@ import net.jforum.repository.ForumRepository;
 import net.jforum.security.AdministrationRule;
 import net.jforum.security.RoleManager;
 import net.jforum.services.ForumService;
+import net.jforum.services.IForumService;
 import net.jforum.services.ViewService;
 
 import org.vraptor.annotations.Component;
@@ -38,12 +39,12 @@ import org.vraptor.annotations.Parameter;
 public class ForumAdminActions {
 	private CategoryRepository categoryRepository;
 	private ForumRepository forumRepository;
-	private ForumService forumService;
+	private IForumService forumService;
 	private ViewPropertyBag propertyBag;
 	private ViewService viewService;
 	private SessionManager sessionManager;
 
-	public ForumAdminActions(ForumService service, ForumRepository forumRepository, CategoryRepository categoryRepository,
+	public ForumAdminActions(IForumService service, ForumRepository forumRepository, CategoryRepository categoryRepository,
 		ViewPropertyBag propertyBag, ViewService viewService, SessionManager sessionManager) {
 		this.forumService = service;
 		this.categoryRepository = categoryRepository;

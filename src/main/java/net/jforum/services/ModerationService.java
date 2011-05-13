@@ -27,7 +27,7 @@ import org.apache.commons.lang.ArrayUtils;
 /**
  * @author Rafael Steil
  */
-public class ModerationService {
+public class ModerationService implements IModerationService {
 	private PostRepository postRepository;
 	private ForumRepository forumRepository;
 	private TopicRepository topicRepository;
@@ -52,7 +52,8 @@ public class ModerationService {
 	 * @param topicIds the id of the topics to move
 	 * @param moderationLog
 	 */
-	public void moveTopics(int toForumId, ModerationLog moderationLog, int... topicIds) {
+	@Override
+    public void moveTopics(int toForumId, ModerationLog moderationLog, int... topicIds) {
 		if (ArrayUtils.isEmpty(topicIds)) {
 			return;
 		}
@@ -73,7 +74,8 @@ public class ModerationService {
 	 * @param topicIds the id of the topics to lock or unlock
 	 * @param moderationLog
 	 */
-	public void lockUnlock(int[] topicIds, ModerationLog moderationLog) {
+	@Override
+    public void lockUnlock(int[] topicIds, ModerationLog moderationLog) {
 		if (ArrayUtils.isEmpty(topicIds)) {
 			return;
 		}
@@ -97,7 +99,8 @@ public class ModerationService {
 	 * @param topics the topics to delete
 	 * @param moderationLog
 	 */
-	public void deleteTopics(List<Topic> topics, ModerationLog moderationLog) {
+	@Override
+    public void deleteTopics(List<Topic> topics, ModerationLog moderationLog) {
 		List<Topic> topicsForModeration = new ArrayList<Topic>();
 
 		for (Topic topic : topics) {
@@ -113,8 +116,9 @@ public class ModerationService {
 	 * @param forumId
 	 * @param infos
 	 */
-	public void doApproval(int forumId, List<ApproveInfo> infos) {
-		if (infos == null || infos.size() == 0) {
+    @Override
+    public void doApproval(int forumId, List<ApproveInfo> infos) {
+        if (infos == null || infos.size() == 0) {
 			return;
 		}
 
@@ -141,7 +145,8 @@ public class ModerationService {
 		this.postRepository.remove(post);
 	}
 
-	public void approvePost(Post post) {
+	@Override
+    public void approvePost(Post post) {
 		Topic topic = post.getTopic();
 
 		if (topic.isWaitingModeration()) {
